@@ -1,0 +1,75 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+- stage: Build
+  jobs:
+  - job: BuildJob
+    steps:
+    - checkout: self
+
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'clean package'
+        jdkVersionOption: '1.11'
+
+    - publish: target
+      artifact: drop
+
+
+- stage: Test
+  dependsOn: Build
+  jobs:
+  - job: TestJob
+    steps:
+    - checkout: self
+
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'test'
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+
+
+- stage: Deploy_Staging
+  dependsOn: Test
+  condition: succeeded()
+  jobs:
+  - deployment: StagingDeploy
+    environment: staging
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+
+          - script: |
+              echo "Deploying to STAGING"
+              ls $(Pipeline.Workspace)/drop
+
+
+- stage: Deploy_Production
+  dependsOn: Deploy_Staging
+  condition: succeeded()
+  jobs:
+  - deployment: ProductionDeploy
+    environment: production
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+
+          - script: |
+              echo "Deploying to PRODUCTION"
+              ls $(Pipeline.Workspace)/drop
