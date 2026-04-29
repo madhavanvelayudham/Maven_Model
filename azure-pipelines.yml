@@ -6,7 +6,7 @@ pool:
 
 stages:
 
-# ---------------- BUILD STAGE ----------------
+# ---------------- BUILD ----------------
 - stage: Build
   jobs:
   - job: BuildJob
@@ -16,14 +16,15 @@ stages:
     - task: Maven@3
       inputs:
         mavenPomFile: 'pom.xml'
-        goals: 'clean package'
+        goals: 'clean package -Dspring-boot.repackage.skip=true'
+        options: '-Dmaven.test.skip=true'
         jdkVersionOption: '1.17'
 
     - publish: target
       artifact: drop
 
 
-# ---------------- TEST STAGE (REGRESSION) ----------------
+# ---------------- TEST (REGRESSION) ----------------
 - stage: Test
   dependsOn: Build
   jobs:
@@ -38,8 +39,14 @@ stages:
         options: '-Dmaven.test.failure.ignore=false'
         jdkVersionOption: '1.17'
 
+    # 🔥 THIS SHOWS TEST RESULTS IN AZURE UI
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+        testRunTitle: 'Regression Test Results'
 
-# ---------------- STAGING DEPLOY ----------------
+
+# ---------------- STAGING ----------------
 - stage: Deploy_Staging
   dependsOn: Test
   condition: succeeded()
@@ -58,7 +65,7 @@ stages:
               ls $(Pipeline.Workspace)/drop
 
 
-# ---------------- PRODUCTION DEPLOY ----------------
+# ---------------- PRODUCTION ----------------
 - stage: Deploy_Production
   dependsOn: Deploy_Staging
   condition: succeeded()
