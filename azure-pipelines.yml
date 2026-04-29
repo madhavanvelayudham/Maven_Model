@@ -16,7 +16,7 @@ stages:
     - task: Maven@3
       inputs:
         mavenPomFile: 'pom.xml'
-        goals: 'clean compile'
+        goals: 'clean package'
         jdkVersionOption: '1.17'
 
     - publish: target
